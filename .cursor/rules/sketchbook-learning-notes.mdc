@@ -1,0 +1,28 @@
+---
+description: Generate visual-first sketchbook learning notes
+globs:
+  - docs/**/*.md
+alwaysApply: false
+---
+
+# Sketchbook Learning Notes Rule
+
+When creating or editing learning notes in this repository:
+
+1. Use a visual-first style:
+   - section cards
+   - short bullets
+   - connector arrows/flow strips
+   - checklist callouts
+2. Keep prose concise and avoid large paragraphs.
+3. Follow:
+   - `docs/sketchbook-style-guide.md`
+   - `docs/system-design-note-template.md`
+   - `docs/content-workflow.md`
+4. Ensure each note includes:
+   - clear learning goal
+   - component breakdown
+   - end-to-end flow
+   - reliability/security/operations perspective
+   - key takeaways
+5. Maintain a handwritten/sketchbook tone while preserving technical accuracy.
