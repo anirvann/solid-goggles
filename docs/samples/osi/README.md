@@ -2,11 +2,22 @@
 
 Sketchbook-style visual learning notes for networking fundamentals.
 
+Each topic has **two parts**:
+- a **summary diagram** (`.png`) — the quick, visual sketchbook overview, and
+- a **detailed markdown** (`.md`) — the in-depth reference with source links.
+
+| Topic | Summary diagram | Detailed notes |
+| --- | --- | --- |
+| OSI + practical layers | `networking-layers-sketchbook.png` | [`01-osi-and-networking-layers.md`](./01-osi-and-networking-layers.md) |
+| Transport, IP & secure web | `tcp-udp-tls-packet-journey.png` | [`02-transport-ip-secure-web.md`](./02-transport-ip-secure-web.md) |
+
 ## Diagrams
 
 ### 1. Networking Layers (OSI + Practical View)
 
 ![Networking Layers](./networking-layers-sketchbook.png)
+
+Detailed notes: [`01-osi-and-networking-layers.md`](./01-osi-and-networking-layers.md)
 
 Covers:
 - The 7 OSI layers (Application → Physical) with concise bullets per layer
@@ -18,6 +29,8 @@ Covers:
 ### 2. Transport, IP & Secure Web: Deep Dive
 
 ![TCP/UDP, IP, TLS and Packet Journey](./tcp-udp-tls-packet-journey.png)
+
+Detailed notes: [`02-transport-ip-secure-web.md`](./02-transport-ip-secure-web.md)
 
 Covers:
 - **TCP vs UDP**: reliability, ordering, use cases

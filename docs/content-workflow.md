@@ -49,19 +49,26 @@ Review each panel for:
 
 ## 6) Final packaging
 
-For every note, produce:
+For every topic, produce **both required artifacts**:
 
-- One visual-first master note
-- One short text companion (optional) if clarification is needed
-- Reusable component snippets for future topics
+- **Summary diagram** (`.png`) — the sketchbook-style visual overview.
+- **Detailed markdown** (`.md`) — the in-depth reference that expands on every item
+  in the diagram and ends with a `Sources & further reading` section.
+- A folder `README.md` table that links each diagram to its detailed notes.
+- (Optional) reusable component snippets for future topics.
 
 ## 7) Naming convention
 
-Recommended filename style:
+Use one folder per subject area, with matching diagram + detailed notes:
 
-`<nn>-<topic-slug>-visual-note.md`
+```
+docs/samples/<subject>/
+  README.md                      # table: diagram <-> detailed notes
+  <topic-slug>.png               # summary diagram
+  <nn>-<topic-slug>.md           # detailed notes (numbered for reading order)
+```
 
 Examples:
-- `01-load-balancer-visual-note.md`
-- `02-api-gateway-visual-note.md`
-- `03-cache-invalidation-visual-note.md`
+- `docs/samples/osi/networking-layers-sketchbook.png` + `01-osi-and-networking-layers.md`
+- `docs/samples/load-balancing/load-balancer.png` + `01-load-balancer.md`
+- `docs/samples/caching/cache.png` + `01-cache-invalidation.md`
