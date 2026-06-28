@@ -13,7 +13,7 @@ The image is the **summary**; the markdown is the **detailed document**. Keep th
 
 ### File/folder conventions
 
-- One folder per subject area (e.g. `docs/samples/osi/`).
+- One root-level folder per subject area (e.g. `osi/`).
 - Diagram: `<topic-slug>.png`
 - Detailed notes: `<nn>-<topic-slug>.md` (numbered for reading order)
 - A folder `README.md` with a table mapping each diagram to its detailed notes.

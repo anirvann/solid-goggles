@@ -59,16 +59,16 @@ For every topic, produce **both required artifacts**:
 
 ## 7) Naming convention
 
-Use one folder per subject area, with matching diagram + detailed notes:
+Use one root-level folder per subject area, with matching diagram + detailed notes:
 
 ```
-docs/samples/<subject>/
+<subject>/
   README.md                      # table: diagram <-> detailed notes
   <topic-slug>.png               # summary diagram
   <nn>-<topic-slug>.md           # detailed notes (numbered for reading order)
 ```
 
 Examples:
-- `docs/samples/osi/networking-layers-sketchbook.png` + `01-osi-and-networking-layers.md`
-- `docs/samples/load-balancing/load-balancer.png` + `01-load-balancer.md`
-- `docs/samples/caching/cache.png` + `01-cache-invalidation.md`
+- `osi/networking-layers-sketchbook.png` + `osi/01-osi-and-networking-layers.md`
+- `load-balancing/load-balancer.png` + `load-balancing/01-load-balancer.md`
+- `caching/cache.png` + `caching/01-cache-invalidation.md`

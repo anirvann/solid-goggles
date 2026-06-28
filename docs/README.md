@@ -21,7 +21,7 @@ topic folder and cross-link them.
 
 ## Example
 
-See `samples/osi/` for a complete example:
+See the root-level `osi/` folder for a complete example:
 - `networking-layers-sketchbook.png` + `01-osi-and-networking-layers.md`
 - `tcp-udp-tls-packet-journey.png` + `02-transport-ip-secure-web.md`
 

@@ -14,6 +14,13 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
   Prompting and execution guidance for using Cursor to create notes.
 - `.cursor/rules/sketchbook-learning-notes.mdc`  
   Repository-level Cursor rule to keep generated content consistent.
+- `osi/`  
+  Example subject folder: sketchbook summary diagrams + detailed markdown notes for networking/OSI topics.
+
+## Topic folders
+
+Each subject lives in its own root-level folder (e.g. `osi/`) and contains both a
+summary diagram (`.png`) and detailed markdown notes (`.md`) per topic.
 
 ## Goal
 
