@@ -1,0 +1,56 @@
+---
+description: Generate visual-first sketchbook learning notes
+globs:
+  - docs/**/*.md
+alwaysApply: false
+---
+
+# Sketchbook Learning Notes Rule
+
+## Two artifacts per topic (required)
+
+For every learning topic, always produce BOTH:
+
+1. A **summary diagram** (`.png`) in sketchbook style — the quick visual glance.
+2. A **detailed markdown** (`.md`) — the in-depth reference that expands on every
+   item shown in the diagram and ends with a **"Sources & further reading"** section
+   containing links to authoritative references (RFCs, MDN, vendor docs, etc.).
+
+Keep both in the same topic folder, cross-link them, and list them in the folder
+`README.md` table (diagram ↔ detailed notes).
+
+## Diagram requirements
+
+When creating the summary diagram:
+
+1. Use a visual-first style:
+   - section cards
+   - short bullets
+   - connector arrows/flow strips
+   - checklist callouts
+2. Keep prose concise and avoid large paragraphs.
+3. Maintain a handwritten/sketchbook tone while preserving technical accuracy.
+
+## Detailed markdown requirements
+
+When creating the detailed markdown:
+
+1. Cover every concept in the diagram with real depth (tables, sequences, examples).
+2. Include hands-on commands where relevant.
+3. Include `Key takeaways`.
+4. Include `Sources & further reading` with links.
+5. Cross-link to the matching diagram.
+
+## Shared
+
+Follow:
+- `docs/sketchbook-style-guide.md`
+- `docs/system-design-note-template.md`
+- `docs/content-workflow.md`
+
+Ensure each topic covers:
+- clear learning goal
+- component breakdown
+- end-to-end flow
+- reliability/security/operations perspective
+- key takeaways
