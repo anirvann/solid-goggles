@@ -8,6 +8,7 @@ This folder contains the framework for sketchbook-style technical learning mater
 2. Use `system-design-note-template.md`
 3. Follow `content-workflow.md`
 4. Use prompts from `cursor-instructions.md`
+5. To run it end to end with one cloud agent, follow `cloud-agent-workflow.md` (Option A, GPT-5.4 High)
 
 ## Two artifacts per topic
 

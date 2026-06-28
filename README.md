@@ -12,6 +12,8 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
   Step-by-step workflow for adding future topics.
 - `docs/cursor-instructions.md`  
   Prompting and execution guidance for using Cursor to create notes.
+- `docs/cloud-agent-workflow.md`  
+  Option A single cloud-agent workflow (GPT-5.4 High) for producing a topic end to end.
 - `.cursor/rules/sketchbook-learning-notes.mdc`  
   Repository-level Cursor rule to keep generated content consistent.
 - `osi/`  
