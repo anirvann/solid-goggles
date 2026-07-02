@@ -16,8 +16,12 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
   Option A single cloud-agent workflow (GPT-5.4 High) for producing a topic end to end.
 - `.cursor/rules/sketchbook-learning-notes.mdc`  
   Repository-level Cursor rule to keep generated content consistent.
+- `AGENTS.md`  
+  Instructions auto-loaded by AI agents: paired markdown+image artifacts, and how a topic can have subtopics producing multiple markdown files and multiple summary images.
 - `osi/`  
   Example subject folder: sketchbook summary diagrams + detailed markdown notes for networking/OSI topics.
+- `cdn/`  
+  Content Delivery Network (CDN) topics: fundamentals & request routing, edge computing, and security & multi-CDN resiliency — with sketchbook diagrams + detailed notes sourced from Cloudflare, Akamai, and Fastly.
 
 ## Topic folders
 
