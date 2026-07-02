@@ -18,6 +18,8 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
   Repository-level Cursor rule to keep generated content consistent.
 - `osi/`  
   Example subject folder: sketchbook summary diagrams + detailed markdown notes for networking/OSI topics.
+- `cdn/`  
+  Content Delivery Network (CDN) topics: fundamentals & request routing, edge computing, and security & multi-CDN resiliency — with sketchbook diagrams + detailed notes sourced from Cloudflare, Akamai, and Fastly.
 
 ## Topic folders
 
