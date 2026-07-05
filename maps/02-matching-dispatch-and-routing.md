@@ -43,9 +43,10 @@ You cannot rank candidates by straight-line distance; you need **real travel tim
 - A **routing engine** runs shortest-path over the road graph. Production engines (OSRM, Valhalla, Google) don't use plain A*; they use **Contraction Hierarchies (CH)** — see note 04 — to answer a route in **< 1 ms** by exploring ~hundreds of nodes regardless of trip length.
 - Live **segment speeds** (from probe data) are pushed into the engine every ~30 s so ETAs reflect current traffic.
 
-### DeepETA (learned correction)
-- A pure physics/graph ETA is systematically off (traffic lights, pickup walking, turn penalties). Uber's **DeepETA** is a **hybrid**: the routing engine gives a base ETA, then a deep model (a transformer-style residual) corrects it.
-- Runs at **p95 ≈ 4 ms**, served via Uber's **Michelangelo** ML platform at up to **~10M predictions/sec** peak — because it must be called for *every* candidate pair in *every* batch.
+### DeepETA / DeeprETA (learned correction)
+- A pure physics/graph ETA is systematically off (traffic lights, pickup walking, turn penalties). Uber's **DeepETA** project shipped **DeeprETA**, a **post-processing residual model**: the routing engine gives a base ETA, then the model predicts the correction. It **replaced an XGBoost incumbent** and improved mean absolute error.
+- The encoder is a **linear transformer** (kernel-trick self-attention, chosen over the quadratic-cost vanilla transformer for latency); nearly all parameters live in **embedding lookup tables** (O(1) at inference). Median latency **3.25 ms**, **p95 ≈ 4 ms** — it is described as the **highest-QPS model at Uber**.
+- Served through the **uRoute** front-end (which calls the routing engine, then the **Michelangelo** online prediction service). It must be called for *every* candidate pair in *every* batch. (Michelangelo's highest-traffic models served **250K+ predictions/sec** as of Uber's 2017 platform post; DeeprETA sits at the top of that curve.)
 
 ### Food-delivery scoring adds more models (DoorDash DeepRed layer 2)
 For each `(order, courier)` pair DoorDash runs **four** models:
@@ -55,6 +56,8 @@ For each `(order, courier)` pair DoorDash runs **four** models:
 4. **Variance** estimator (penalize risky/high-variance stacked routes)
 
 The output is a **cost/utility** per edge that the optimizer consumes.
+
+> **Measuring prep time honestly (Zomato).** Naively, food-prep time = (pickup timestamp − order-accept timestamp), but that contaminates a *restaurant* metric with *courier* behaviour. Zomato added a **"Food Order Ready" (FOR) button** in the restaurant app so partners mark the true ready moment, which improved within-5-minute prediction accuracy by ~9% as compliance grew. Zomato's ETA (the **Time Microservice**) sums **DP-ETA** (travel, restaurant → geofenced customer drop) + **KPT/FPT** (kitchen/food prep) + real-time dynamic buffers, and switched from a map-graph model to a **tree-based model** where sparse Indian road maps hurt graph routing.
 
 ---
 
@@ -68,6 +71,8 @@ Greedy "closest driver first" is locally optimal but globally poor: it can stran
 - Solve the **assignment problem** to minimize total system-wide cost. Because the LP relaxation of bipartite matching is integral (Edmonds' theorem), the **Hungarian algorithm** solves it exactly in polynomial time.
 - **Uber DISCO** (Dispatch Optimization) = this batched bipartite matcher.
 
+> **Origin story (Uber's real-time market platform).** Uber split the marketplace into three services: **Supply** (drivers, with capabilities/state machines — seats, wheelchair, etc.), **Demand** (riders/requests), and **DISCO** which matches them. The move from "current available supply only" to a forward-looking, sharded design was driven by a target of **~1M writes/sec** and a much higher read rate — which is exactly why the location layer had to be **sharded (Ringpop + S2)** and stateful rather than a single database.
+
 ### When routes get complex → MIP (DoorDash DeepRed layer 3)
 Bipartite/Hungarian only handles one delivery per route. Food delivery needs **stacking** (2+ orders on one trip) and **strategic delay**, so DoorDash uses a **Mixed-Integer Program (MIP)** solved with **Gurobi**. Each window the solver chooses among:
 - **single** offer,
@@ -77,6 +82,13 @@ Bipartite/Hungarian only handles one delivery per route. Food delivery needs **s
 
 It maximizes total marketplace utility (speed vs. courier efficiency vs. variance). The Hungarian approach was dropped for large instances because its runtime is too high and it can't express multi-stop routes.
 
+**Two-stage grocery/quick-commerce variant (Swiggy Instamart).** For continuous streams of orders, Swiggy splits the problem: **Stage I — Last-Mile (LM) optimization** batches and routes orders using a **Dynamic Pickup & Delivery Problem with Time Windows (DPDPTW)** model (plus a greedy heuristic at higher scale), freezing already-committed legs of a route and only exploring new orders against open batches; **Stage II — First-Mile (FM) optimization** does **Just-In-Time assignment** of a nearby delivery executive to a finished batch — all solved sequentially to stay under ~1 minute.
+
+### The frontier: reinforcement learning
+Because dispatch is really a sequential decision problem (today's assignment changes tomorrow's supply distribution), teams are moving to **RL/MDP** framings:
+- **Grab DispatchGym** — an RL research framework (Gymnasium API) to simulate the dispatch environment and safely iterate policies before production.
+- **Zomato "Active Dispatch"** — a **Deep Q-Network multi-agent RL** model that *repositions free delivery partners* using predicted demand vs. available supply, lifting the share of orders a DP receives and cutting idle time between deliveries.
+
 ---
 
 ## 5) Offer → accept → lock (making the decision atomic)
@@ -85,8 +97,13 @@ Once the batch is solved:
 
 1. **Lock** the chosen driver with an atomic state transition (e.g. Redis compare-and-swap `available → offered`) so two batches can't grab the same driver.
 2. **Push the offer** to the driver's phone over a persistent stream (Uber **RAMEN**, gRPC bidi — see note 03), typically in **< 100 ms**.
-3. Driver has ~**15 s** to accept/decline. On accept → `dispatched`; on decline/timeout → driver returns to the pool and re-enters the next batch.
+3. Driver has ~**15 s** to accept/decline. On accept → `dispatched`; on decline/timeout → driver returns to the pool and re-enters the next batch. Food platforms typically do **sequential assignment**: try the best candidate, hold a lock, wait *T* seconds; on reject/timeout the lock auto-releases (TTL) and the next-best candidate is tried.
 4. The trip is then run as a **durable workflow** (Uber uses **Cadence**) so a multi-minute, multi-step lifecycle (en-route → arrived → started → completed → paid) survives crashes and retries.
+
+**Cadence, a bit deeper.** Cadence (open-source, now a CNCF project) models the trip as a **durable function**. It uses **event sourcing**: every state change (`ActivityTaskScheduled`, `TimerFired`, …) is appended to an immutable history log, and if the worker crashes the engine **replays the history** to reconstruct exact state and continue. Workflow code must be **deterministic** (side effects live in *activities*; use `workflow.Now()`/`workflow.Sleep()`), and persistence is backed by **Cassandra/MySQL**. The trade-off: Cadence becomes a critical dependency — if its store degrades, in-progress trips **freeze** (state is safe, but can't advance).
+
+### Cross-vertical fulfilment (fewer idle minutes)
+Grab runs a unified **Fulfilment Platform** across mobility *and* deliveries: a driver who just finished a GrabFood drop can immediately be offered a GrabCar ride because one platform sees the full picture. Merging the supply pools across verticals removes "dead time" between trips and raises driver earnings — a marketplace lever that pure single-vertical dispatch can't pull.
 
 ---
 
@@ -130,9 +147,10 @@ Food delivery is the same skeleton with a 3-point route, prep-time gating, stack
 
 - Dispatch = **candidate generation (H3) → ETA/ML scoring → batched optimization → offer/accept**, not "nearest driver."
 - **Batching (2–5 s) + bipartite matching (Hungarian)** beats greedy globally — Uber's **DISCO**; documented double-digit gains.
-- **ETA must be road-network + learned:** DeepETA (physics + ML) at p95 ≈ 4 ms feeds the edge weights.
-- Food delivery adds **prep-time, stacking, and strategic delay**, so DoorDash's **DeepRed** uses a **MIP (Gurobi)**, not plain Hungarian.
-- Assignment must be **atomically locked** (CAS) and pushed in <100 ms; the trip runs as a **durable workflow**.
+- **ETA must be road-network + learned:** Uber's **DeeprETA** (a linear-transformer residual over the routing engine, median 3.25 ms / p95 ≈ 4 ms, via uRoute→Michelangelo) feeds the edge weights; it replaced XGBoost and is Uber's highest-QPS model.
+- Food delivery adds **prep-time (measured honestly via a "ready" button), stacking, and strategic delay**, so DoorDash's **DeepRed** uses a **MIP (Gurobi)** and Swiggy Instamart a **two-stage DPDPTW**, not plain Hungarian.
+- Assignment must be **atomically locked** (CAS) and pushed in <100 ms; the trip runs as a **durable, event-sourced workflow** (Cadence — replays history on crash).
+- The frontier is **RL/MDP dispatch** (Grab DispatchGym, Zomato Active Dispatch) and **cross-vertical fulfilment** (Grab) to cut idle time.
 - **Surge pricing** (per H3 hexagon) is the feedback loop balancing the two-sided market.
 
 ---
@@ -144,11 +162,14 @@ Food delivery is the same skeleton with a 3-point route, prep-time gating, stack
 - **Bipartite matching:** pairing two disjoint sets (riders/drivers) to minimize total cost.
 - **Hungarian algorithm:** polynomial exact solver for the assignment problem.
 - **MIP / Gurobi:** Mixed-Integer Program / a commercial solver, used for stacking + delay.
-- **DeepETA:** Uber's hybrid physics+ML travel-time predictor.
-- **Michelangelo:** Uber's ML platform serving models like DeepETA at scale.
+- **DPDPTW:** Dynamic Pickup & Delivery Problem with Time Windows (Swiggy Instamart batching model).
+- **DeepETA / DeeprETA:** Uber's ETA project / its linear-transformer post-processing model.
+- **Michelangelo / uRoute:** Uber's ML serving platform / the routing front-end that calls it for ETAs.
+- **DispatchGym / Active Dispatch:** Grab's RL research framework / Zomato's DQN driver-repositioning model.
+- **Fulfilment Platform:** Grab's unified cross-vertical (rides + delivery) supply pool.
 - **k-ring (`gridDisk`):** H3 cell + surrounding cells within distance k (candidate set).
 - **Surge multiplier:** dynamic price factor per hexagon when demand > supply.
-- **Cadence:** Uber's durable workflow engine for the trip lifecycle.
+- **Cadence:** Uber's durable, event-sourced workflow engine for the trip lifecycle.
 
 ---
 
@@ -156,13 +177,21 @@ Food delivery is the same skeleton with a 3-point route, prep-time gating, stack
 
 **Ride-hailing dispatch**
 - Uber Marketplace — batched matching vs. "closest first": <https://www.uber.com/us/en/marketplace/matching/>
-- Uber Engineering — *DeepETA: how Uber predicts arrival times with deep learning*: <https://www.uber.com/blog/deepeta-how-uber-predicts-arrival-times/>
-- Uber Engineering — *Michelangelo ML platform*: <https://www.uber.com/blog/michelangelo-machine-learning-platform/>
-- Sujeet Jaiswal — *Design Uber-style ride hailing (H3 + DISCO + DeepETA, grounded in Uber's published work)*: <https://sujeet.pro/articles/design-uber-ride-hailing>
+- Uber Engineering — *DeepETA: how Uber predicts arrival times with deep learning (linear transformer, replaces XGBoost)*: <https://www.uber.com/blog/deepeta-how-uber-predicts-arrival-times/>
+- Uber AI — *DeeprETA: an ETA post-processing system at scale (median 3.25 ms / p95 4 ms)*: <https://arxiv.org/abs/2206.02127>
+- Uber Engineering — *Michelangelo ML platform (250K+ predictions/sec)*: <https://www.uber.com/blog/michelangelo-machine-learning-platform/>
+- InfoQ — *Uber unveils its realtime market platform (Supply/Demand/DISCO, 1M writes/sec, Ringpop)*: <https://www.infoq.com/news/2015/03/uber-realtime-market-platform/>
 - The HLD Handbook — *Design a ride-hailing service (batched bipartite matching, Cadence)*: <https://hld.handbook.academy/curriculum/case-studies/ride-hailing/>
+
+**Durable workflow & RL dispatch**
+- Uber Engineering — *Announcing Cadence 1.0 (durable, event-sourced workflows)*: <https://www.uber.com/us/en/blog/announcing-cadence/>
+- Cadence — *Workflow engine concepts (event sourcing, replay, determinism)*: <https://cadenceworkflow.io/docs/concepts/workflow-engine>
+- Grab Engineering — *DispatchGym: Grab's reinforcement-learning research framework*: <https://engineering.grab.com/techblog_-dispatchgym>
+- Grab Engineering — *The Fulfilment Platform (cross-vertical driver pool)* / *DispatchGym* series.
 
 **Food-delivery dispatch**
 - DoorDash Engineering — *Using ML and optimization to solve DoorDash's dispatch problem (DeepRed)*: <https://careersatdoordash.com/blog/using-ml-and-optimization-to-solve-doordashs-dispatch-problem/>
 - DoorDash Engineering — *Next-generation optimization for Dasher dispatch (beyond Hungarian → routes)*: <https://careersatdoordash.com/blog/next-generation-optimization-for-dasher-dispatch-at-doordash/>
-- DoorDash Engineering — *Iterating real-time assignment algorithms through experimentation*: <https://doordash.engineering/2020/12/08/optimizing-real-time-algorithms-experimentation/>
-- The HLD Handbook — *Design a food-delivery service (DeepRed's three layers, stacking)*: <https://hld.handbook.academy/curriculum/case-studies/food-delivery/>
+- Swiggy Bytes — *Assignment & routing optimization for Swiggy Instamart (two-stage LM/FM, DPDPTW)*: <https://bytes.swiggy.com/assignment-and-routing-optimization-for-swiggy-instamart-delivery-4d97cb2313a3>
+- Zomato — *The deep tech behind estimating Food Preparation Time (FOR button, tree models)*: <https://blog.zomato.com/predicting-fpt-optimally>
+- The HLD Handbook — *Design a food-delivery service (DeepRed's three layers, stacking, H3 res-9)*: <https://hld.handbook.academy/curriculum/case-studies/food-delivery/>

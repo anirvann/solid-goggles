@@ -78,6 +78,12 @@ OLTP stores (MySQL, Cassandra)  --change logs-->  Kafka
 ### Gairos — the real-time data intelligence platform
 Uber's **Gairos** ingests Kafka topics into **Elasticsearch** clusters and serves real-time queries for **surge pricing, max-dispatch-ETA, and demand/supply forecasting** — surge reads demand & supply **per hexagon** to compute the multiplier for a location and time.
 
+### The online/offline feature store (this pattern is everywhere)
+The same shape recurs across companies — evidence it's the standard, not a one-off:
+- **Real-time features:** Kafka event streams → **Flink** → an **online feature store on Redis** for sub-ms reads at prediction time.
+- **Batch features:** **Spark** → an **offline feature store** (Cassandra at Uber's Michelangelo; **DynamoDB** at Zomato, with hot features cached in Redis).
+- Serving reads both to score models (ETA, prep time, surge). Uber (Michelangelo) and **Zomato** describe near-identical designs, which is why the same diagram fits Bangalore and San Francisco.
+
 ---
 
 ## 4) What the analytics actually produce
@@ -87,6 +93,8 @@ Uber's **Gairos** ingests Kafka topics into **Elasticsearch** clusters and serve
 - **ETA & route ML:** DeepETA and prep-time/travel-time models (note 02) are trained on historical trips in the lake and served via **Michelangelo**.
 - **User-facing analytics:** "Orders near you," ETA bands, heatmaps, driver earnings dashboards.
 - **Ops & business intelligence:** city dashboards, funnel analysis, experiment (switchback) readouts for dispatch algorithm changes.
+- **RL / repositioning:** demand+supply feeds train **reinforcement-learning** policies that nudge idle drivers toward predicted demand (Zomato **Active Dispatch** DQN; Grab **DispatchGym**) — analytics closing the loop back into dispatch (note 02).
+- **Load-shedding signals:** per-cell overload counters (Grab **Spampede**: `INCR` on a `(service, geohash-cell, time-bucket)` key) act as both an ops metric *and* a circuit breaker during spikes.
 - **Fraud & safety:** GPS-spoofing detection, impossible-travel checks, anomaly flags from location patterns.
 
 ---
@@ -120,7 +128,8 @@ The same firehose simultaneously answers "is dispatch healthy?" and "what should
 - Watch the dispatch golden signals: **match rate, time-to-match, ETA error, offer accept rate, push success, Kafka lag, hot-shard skew, stale-driver ratio.**
 - **Analytics is decoupled from OLTP** via the **Kafka firehose → Flink/Spark → Apache Pinot / lake** pattern, keeping heavy queries off the serving path.
 - **Apache Pinot with H3 geo-indexing** gives **seconds-fresh, high-QPS, user-facing** geospatial analytics ("Orders near you") and supports **upsert** for correctness.
-- Analytics powers **surge, forecasting, ETA/prep ML (Michelangelo), fraud detection, and dashboards** — a closed loop feeding back into dispatch (note 02).
+- Analytics powers **surge, forecasting, ETA/prep ML, RL repositioning, fraud detection, and dashboards** — a closed loop feeding back into dispatch (note 02).
+- The **online (Redis) + offline (Cassandra/DynamoDB) feature store** fed by Kafka→Flink and Spark is the standard pattern — Uber's **Michelangelo** and **Zomato** describe near-identical designs.
 - **Gairos** (Kafka → Elasticsearch) is Uber's real-time platform for surge, max-dispatch-ETA, and forecasting, all per hexagon.
 
 ---
@@ -137,6 +146,8 @@ The same firehose simultaneously answers "is dispatch healthy?" and "what should
 - **Data lake (HDFS/S3):** cheap durable storage for history & ML.
 - **Gairos:** Uber's real-time data intelligence platform (surge, ETA, forecasting).
 - **Michelangelo:** Uber's ML platform for training/serving models (e.g. DeepETA).
+- **Feature store (online/offline):** low-latency (Redis) + batch (Cassandra/DynamoDB) stores of model inputs.
+- **Spampede:** Grab's per-cell/time overload counter + circuit breaker (also an ops signal).
 - **Upsert:** insert-or-update on ingestion to keep real-time results accurate.
 
 ---
@@ -148,9 +159,11 @@ The same firehose simultaneously answers "is dispatch healthy?" and "what should
 - Apache Pinot — *Geospatial support (H3 index, `ST_Distance`)*: <https://docs.pinot.apache.org/basics/indexing/geospatial-support>
 - Uber Engineering — *Real-time exactly-once ad event processing with Flink, Kafka & Pinot (upsert)*: <https://www.uber.com/us/en/blog/real-time-exactly-once-ad-event-processing/>
 
-**Real-time platform & surge**
+**Real-time platform, feature stores & surge**
 - Uber Engineering — *Gairos: real-time data intelligence platform (surge, dispatch ETA, forecasting)*: <https://www.uber.com/us/en/blog/gairos-scalability/>
-- Uber Engineering — *Michelangelo ML platform*: <https://www.uber.com/blog/michelangelo-machine-learning-platform/>
+- Uber Engineering — *Michelangelo ML platform (online Redis / offline Cassandra feature store)*: <https://www.uber.com/blog/michelangelo-machine-learning-platform/>
+- Zomato — *The elements of scalable machine learning (Kafka→Flink→Redis online store; Spark→DynamoDB offline; Active Dispatch RL)*: <https://blog.zomato.com/elements-of-scalable-machine-learning>
+- Grab Engineering — *Preventing performance degradation from demand spikes (Spampede per-cell circuit breaker)*: <https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes>
 
 **Analytics stack**
 - Apache Pinot documentation: <https://docs.pinot.apache.org/>

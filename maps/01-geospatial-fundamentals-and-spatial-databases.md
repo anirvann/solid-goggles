@@ -65,7 +65,7 @@ Uber built and open-sourced **H3** specifically for marketplace pricing, dispatc
 - **Why hexagons:** a hexagon has **one** neighbour distance (all 6 neighbours equidistant), versus 2 for squares and 3 for triangles. That uniformity makes "expand the search by one ring" and surge-gradient smoothing clean and isotropic.
 - **Hierarchy (aperture 7):** each cell subdivides into ~7 children; a cell has ~1/7 the area of its parent. `compact`/`uncompact` trade cell count for resolution (e.g. 10,633 res-6 cells → 901 mixed-resolution cells).
 - **The 12 pentagons:** you can't perfectly tile a sphere with hexagons, so every resolution has exactly **12 pentagons** (centred on icosahedron vertices, usually parked over ocean). Cell area also varies up to ~2× across a resolution, so for exact distances use `greatCircleDistance`, not the average edge length.
-- **Resolutions used in practice:** res-**9** (~0.105 km², edge ~174 m) for **driver indexing**; res-**7** (~5.16 km², edge ~1.22 km) for **surge/pricing** buckets. Res-0 has 122 base cells (110 hexagons + 12 pentagons).
+- **Resolutions used in practice:** res-**9** (~0.105 km², **avg edge ~201 m** per the official H3 table) for **driver indexing**; res-**7** (~5.16 km², avg edge ~1.41 km) for **surge/pricing** buckets. Res-0 has 122 base cells (110 hexagons + 12 pentagons). DoorDash independently picked **res-9** as "the empirical optimal balance between computational complexity and approximation effectiveness," since a merchant cell + a k-ring of 7 covers the ~1–1.5 km urban dispatch radius.
 
 Core API (v4 names):
 
@@ -97,6 +97,9 @@ H3 does **not** measure road distance or pick the winner — it **shrinks the se
 - **PostGIS** (the Postgres extension) implements this via **GiST** (Generalized Search Tree) indexes and functions like `ST_DWithin`, `ST_Distance`, `ST_Contains`. It's the gold standard for **rich, precise** geospatial SQL: zones, service-area polygons, geofences, isochrones.
 - **Tile38** (open-source, Redis-RESP protocol, in-memory) keeps one **B-tree + R-tree per collection** — `O(log n)` point updates — and adds real-time **geofencing** (`Nearby`, `Within`, `Intersects`, plus roaming geofences via the `FENCE` keyword) with webhooks/pub-sub. Comfortably ~**100K+ ops/sec** on modest hardware.
 
+### Grid filter vs. road-network nearest-neighbour
+A grid/hex filter returns candidates by **straight-line** proximity — but the geometrically-nearest driver can be across a river or a highway with no ramp. Grab's **Pharos** service answers **K-nearest by driving distance / ETA** directly on the road graph: it loads the **OSM graph partitioned per city**, stores drivers in memory on road segments using **Adaptive Radix Trees (ART)**, and runs **Incremental Network Expansion (INE)** — expanding outward along road segments (effectively growing an isochrone) until it hits a radius/ETA/K limit. Use a grid index when approximate straight-line proximity is fine (cheapest); use road-network expansion when *travel-time* correctness matters.
+
 ---
 
 ## 7) What database goes where (the tiering that matters)
@@ -109,6 +112,7 @@ There is **no single database**. Real systems tier by access pattern:
 | **Spatial reference / polygons** | zones, geofences, service areas, precise queries | **PostGIS (Postgres + GiST)** | ACID, rich `ST_*` functions, exact geometry |
 | **Map / graph data** | road network, tiles, map elements | **DynamoDB / Docstore / object store**, keyed by S2/H3 | serialized blobs fetched by cell id (Lyft's `MapAttributes`) |
 | **Trip / order state** | durable business records | **MySQL / Postgres**, **Cassandra**, **DynamoDB** | OLTP correctness + horizontal scale |
+| **Cached derived geo data** | precomputed cell-to-cell distances/ETAs | **Aerospike** (Swiggy Distance Service) | avoid recomputing hundreds of billions of point-pair distances; key by geohash-cell pair |
 | **Cold analytics** | history, ML, dashboards | **HDFS / S3 data lake**, **Apache Pinot**, warehouse | cheap at PB scale; H3-indexed OLAP (see note 05) |
 
 **SQL vs NoSQL vs spatial — the honest answer:**
@@ -118,6 +122,17 @@ There is **no single database**. Real systems tier by access pattern:
 - **In-memory spatial (Redis/Tile38)** → the actual home of **live moving objects**: write-over-memory instead of reallocating, TTL expiry (`ZREMRANGEBYSCORE` to drop drivers silent >3–5 s), no global write lock because it's sharded by cell.
 
 > Rule of thumb: **grid/geohash/S2/H3 = the index**; **Redis/Tile38 = the hot store**; **PostGIS = precise geometry**; **Cassandra/DynamoDB/lake = durable + analytics**. One app uses several at once.
+
+### Sharding the hot store: application-layer sharding by cell
+The classic way to hold ephemeral location isn't a database at all — it's a **fleet of stateful in-memory workers** sharded by spatial cell. Uber's original **Geospatial** service (the first layer of matching) used **Ringpop**: an application-layer sharding library that maintains a **consistent hash ring** over the service's own instances, with **SWIM gossip** for membership/failure detection and **TChannel** RPC for a **handle-or-forward** pattern (a request landing on the wrong node is transparently forwarded to the owner). The **shard key is the S2 cell id** of the driver, so each worker owns a *geographic area* rather than specific drivers, and clients need no knowledge of the partitioning. This is what lets the hot path absorb ~1M writes/s without a global lock.
+
+### Separate the three concerns (Swiggy/Zomato pattern)
+Do **not** cram everything into the geo key. Keep three independent structures:
+- **Location index** (geohash/H3 → who is where) — high-churn, TTL'd.
+- **Availability set** (who is free right now) — volatile; must not be embedded in geo keys.
+- **Assignment lock** (who is being offered a job) — transient and **atomic**.
+
+Mixing them (e.g. a geo key that also encodes availability) forces expensive rewrites on every state change; separating them keeps each store simple and correct.
 
 ---
 
@@ -153,8 +168,9 @@ READ (rider taps, ~1M/s):
 - **Geohash → S2/quadtree → H3** are three ways to turn 2-D geography into a sortable cell id; **R-tree/GiST** is the tree used by spatial SQL.
 - **H3 (hexagons, 64-bit, 16 resolutions)** is the modern default because all neighbours are equidistant — clean k-ring radius search and surge gradients; res-9 for drivers, res-7 for surge.
 - The index only **shrinks the candidate set**; precise road-network ETA runs afterwards on the survivors.
-- There is **no single DB**: Redis/Tile38 for hot live location, PostGIS for precise polygons, Cassandra/DynamoDB for durable state, lake/Pinot for analytics.
-- Live GPS goes to **in-memory + a stream**, never straight into an expensive per-write OLTP store.
+- There is **no single DB**: Redis/Tile38 for hot live location, PostGIS for precise polygons, Cassandra/DynamoDB for durable state, Aerospike for cached distances, lake/Pinot for analytics.
+- Live GPS goes to **in-memory + a stream**, never straight into an expensive per-write OLTP store; the hot store is often **stateful workers sharded by cell** (Uber Ringpop + S2), not a database.
+- Keep **location index, availability set, and assignment lock as separate concerns**; and prefer **road-network KNN** (Grab Pharos) over grid filtering when travel-time (not straight-line) proximity matters.
 
 ---
 
@@ -168,6 +184,9 @@ READ (rider taps, ~1M/s):
 - **Quadtree / R-tree / GiST:** recursive space-partitioning trees; R-tree/GiST back PostGIS.
 - **PostGIS:** spatial extension of Postgres (precise geometry, `ST_*`).
 - **Redis GEO / Tile38:** in-memory spatial stores for hot moving objects.
+- **Ringpop:** Uber's application-layer sharding lib (consistent hash ring + SWIM gossip + TChannel), used to shard ephemeral location by S2 cell.
+- **Pharos:** Grab's in-memory road-network KNN service (ART + Incremental Network Expansion) for nearest-by-ETA.
+- **INE (Incremental Network Expansion):** expanding along road segments (an isochrone) to find nearest objects by driving distance.
 - **Great-circle distance:** true distance between two points on a sphere.
 
 ---
@@ -184,9 +203,12 @@ READ (rider taps, ~1M/s):
 - Redis — *Geospatial indexes* (`GEOADD`/`GEOSEARCH`): <https://redis.io/docs/latest/develop/data-types/geospatial/>
 - Geohash reference: <https://en.wikipedia.org/wiki/Geohash>
 
-**Spatial databases**
+**Spatial databases & sharding**
 - PostGIS docs — *Spatial indexing (GiST), `ST_DWithin`*: <https://postgis.net/docs/using_postgis_dbmanagement.html>
 - Tile38 — *Ultra-fast geospatial database & geofencing*: <https://tile38.com/> and <https://github.com/tidwall/tile38>
+- Uber Engineering — *Ringpop: application-layer sharding (first use case = the Geospatial service, S2 shard key)*: <https://www.uber.com/en-US/blog/ringpop-open-source-nodejs-library/>
+- Grab Engineering — *Pharos: searching nearby drivers on the road network at scale (ART + INE)*: <https://engineering.grab.com/pharos-searching-nearby-drivers-on-road-network-at-scale>
+- Swiggy Bytes — *Swiggy Distance Service (geohash cells + Aerospike distance cache)*: <https://bytes.swiggy.com/swiggy-distance-service-9868dcf613f4>
 
 **Systems using them**
 - Lyft Engineering (via System Design newsletter) — *Redis + S2 level-5 sharding for driver location*: <https://newsletter.systemdesign.one/p/lyft-engineering>

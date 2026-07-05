@@ -13,10 +13,15 @@ When engineers say "the map," they mean two very different products built from t
 
 | Artifact | What it is | Used by |
 | --- | --- | --- |
-| **Render tiles** | pre-rendered/vector image tiles of streets, water, labels | the visual map you see + pan/zoom |
+| **Render tiles** | tiles of streets, water, labels (raster images *or* vector data) | the visual map you see + pan/zoom |
 | **Routing graph** | a directed graph: **nodes** (intersections) + **edges** (road segments) with attributes (length, speed, turn restrictions, one-way) | dispatch ETA, navigation, map-matching |
 
 The routing graph is the one that matters for connecting drivers to riders — it's what the ETA/routing engine (note 02) runs on.
+
+### Raster vs. vector tiles (how the map you see is drawn)
+- The world is projected to **Web Mercator** and cut into a `{z}/{x}/{y}` tile pyramid; the client fetches only the tiles in the current viewport.
+- **Raster tiles** (the original Google Maps pattern) are **pre-rendered PNG/JPEG images** — simple, but they pixelate on zoom and the style is baked in.
+- **Vector tiles** (the modern default, e.g. **Mapbox Vector Tiles / MVT**) ship **protobuf-encoded geometry** (`.mvt`/`.pbf`: points, lines, polygons + attributes), *not* pixels. The client decodes them (often in worker threads) and **renders on the GPU via WebGL** (Mapbox GL / MapLibre) against a **style JSON** applied *at runtime*. That enables smooth zoom/rotate/tilt and **dynamic styling** — the same tile data becomes a light map, dark map, or fleet/logistics map by swapping the style. The routing graph and the render tiles are built from the same source data but are separate artifacts.
 
 ---
 
@@ -33,6 +38,8 @@ Modern maps are **fused** from multiple sources, each covering the others' blind
 4. **Operational feedback** — driver/rider reports, failed pickups, "no such road" errors.
 
 These are merged in a **periodic map-data pipeline** (often a **weekly** graph rebuild) that resolves conflicts by a **source-priority hierarchy** and requires **dual confirmation** before committing a new road (two independent signals, e.g. probe + imagery), to avoid hallucinating roads from GPS noise.
+
+> **Why this matters most in India (Zomato).** Open-source base maps are **sparse in many Indian cities** — dense older districts, makeshift roads, and inroads are missing, which wrecks graph-based routing and ETAs. Zomato runs a **map reconstruction** pipeline that leverages **delivery-partner pings + trip data** to *infer new roads, unknown roads and shortcuts*, then **filters, merges them into the India map and makes them routable**. It pairs this with **sensor fusion in the DP app** and pre/post GPS-noise filtering. This is the probe-data → road-discovery loop in action — and a reason Zomato moved ETA from a map-graph model to a tree-based one where the graph is unreliable (note 02).
 
 ---
 
@@ -114,18 +121,21 @@ Used by **OSRM, Valhalla, and Google Maps**.
 ## 7) Key takeaways
 
 - A "map" = **render tiles** (what you see) + a **routing graph** (nodes/edges) — dispatch cares about the graph.
+- The visual map is increasingly **vector tiles (MVT, protobuf)** rendered client-side on the **GPU (WebGL)** against a runtime **style JSON**, not pre-baked raster images.
 - Maps are **fused**: **OSM + gov data + GPS probe traces + satellite ML**, merged in a **weekly** pipeline with **conflict resolution + dual-confirm** for new roads.
 - **Map-matching** snaps noisy GPS onto the graph with an **HMM solved by Viterbi** (Valhalla Meili, OSRM `/match`).
 - Routing is fast because of **Contraction Hierarchies** — offline shortcuts → **< 1 ms** queries; OSRM/Valhalla/Google use it.
 - **Live traffic** is applied via **CCH weight refresh (~every 30 s)** from probe speeds, then corrected by **DeepETA**.
-- The fleet is a sensor: probe data both consumes and continuously **improves** the map.
+- The fleet is a sensor: probe data both consumes and continuously **improves** the map — critical where base maps are sparse (Zomato reconstructs Indian roads from DP pings).
 
 ---
 
 ## 8) Quick glossary
 
 - **Routing graph:** directed graph of intersections (nodes) and road segments (edges) with attributes.
-- **Render tiles:** pre-rendered/vector images of the visual map.
+- **Render tiles:** map display data cut into a `{z}/{x}/{y}` pyramid — raster (images) or vector.
+- **Vector tile / MVT:** protobuf-encoded geometry (`.mvt`/`.pbf`) styled & rendered on the client (WebGL).
+- **Style JSON:** runtime description of how to paint tile layers (enables dynamic light/dark/logistics styles).
 - **OSM:** OpenStreetMap — community base map, published as daily diffs.
 - **Probe / GPS trace:** anonymized vehicle location trails used for roads, speeds, traffic.
 - **Map-matching:** snapping noisy GPS to the most probable road path.
@@ -144,6 +154,11 @@ Used by **OSRM, Valhalla, and Google Maps**.
 - OpenStreetMap wiki — *Planet.osm & replication (minutely/daily diffs)*: <https://wiki.openstreetmap.org/wiki/Planet.osm>
 - MapFuse (arXiv 1802.02351) — *Road-network fusion for incremental map updates (new roads, closures)*: <https://arxiv.org/abs/1802.02351>
 - CrackingWalnuts — *Maps platform system design (source fusion, weekly pipeline, dual confirmation, CCH refresh)*: <https://crackingwalnuts.com/post/maps-platform-system-design>
+- Zomato — *The elements of scalable machine learning (map reconstruction from DP pings, sensor fusion)*: <https://blog.zomato.com/elements-of-scalable-machine-learning>
+
+**Render / vector tiles**
+- Mapbox — *Vector tiles introduction (MVT, client-side WebGL rendering, dynamic styling)*: <https://docs.mapbox.com/data/tilesets/guides/vector-tiles-introduction/>
+- Mapbox Vector Tile Specification (protobuf `.mvt`): <https://mapbox.github.io/vector-tile-spec/>
 
 **Map-matching**
 - Newson & Krumm (Microsoft Research) — *Hidden Markov Map Matching Through Noise and Sparseness* (the canonical HMM paper): <https://www.microsoft.com/en-us/research/publication/hidden-markov-map-matching-noise-sparseness/>

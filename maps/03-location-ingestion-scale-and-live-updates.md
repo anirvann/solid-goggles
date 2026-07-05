@@ -30,7 +30,7 @@ The write path must be **cheap, in-memory, expiring, and streamed** — never a 
 
 1. **Batch / aggregate on the client & edge.** Buffer a few points on the phone (e.g. 3 points, smoothed with a Kalman filter) and send one message, cutting request count. Aggregate again server-side over a short interval before any persistence.
 2. **In-memory hot store with TTL.** Write current position to **Redis GEO / Redis Cluster / Tile38** — overwrite memory instead of reallocating, and **auto-expire** silent drivers (`ZREMRANGEBYSCORE` / TTL to drop anyone quiet >3–5 s). The hot store is a **cache**, not the source of truth.
-3. **Shard by spatial cell, not by city.** Partition Redis by **S2 level-5 (~1 km²)** or **H3** cell so no single downtown shard becomes a hotspot; this removes global write-lock contention. (Lyft's approach.)
+3. **Shard by spatial cell, not by city.** Partition Redis by **S2 level-5 (~1 km²)** or **H3** cell so no single downtown shard becomes a hotspot; this removes global write-lock contention (Lyft's approach). The classic mechanism is **application-layer sharding** — Uber's **Ringpop** holds a **consistent hash ring** over stateful in-memory workers, keyed by the driver's **S2 cell**, with **SWIM gossip** membership and **TChannel** handle-or-forward routing, so a worker owns a *geographic area* and clients need no knowledge of the partitioning (see note 01).
 4. **Stream everything through a log.** Publish every ping to **Apache Kafka** (Uber uses Kafka + uReplicator for cross-DC fan-out). One durable, replayable log fans out to *many* consumers (geo store, surge, ETA, analytics, ML) — decoupling producers from consumers.
 5. **Tier hot vs. cold.** Live position → memory (seconds of retention). History → **data lake (HDFS/S3)** and **OLAP (Pinot)** for analytics (note 05). Trip records → durable OLTP (Cassandra/DynamoDB/MySQL).
 
@@ -82,6 +82,12 @@ The canonical, publicly documented design.
 - **Heartbeats + exponential backoff** reconnection keep the stream healthy.
 - **Fallback to APNs/FCM** push notifications to wake a backgrounded/killed app.
 
+### WebSockets — the simpler cousin
+Not everyone builds RAMEN. Many food-delivery customer-tracking screens use plain **WebSockets** (full-duplex over one TCP connection): the app opens a connection, **subscribes to an order-specific channel**, and the server publishes each new courier position to that channel (often fanned out via Redis pub/sub), with the frontend animating the marker. One connection carries hundreds of updates at sub-100 ms latency — the same "push, don't poll" principle as RAMEN, with less bespoke infrastructure.
+
+### A concrete open-source example: Namma Yatri
+India's **Namma Yatri** (a Juspay spin-off, built on **ONDC + the Beckn protocol** — an open network, "UPI for mobility") ships its stack in the open, and it mirrors this note almost exactly: a dedicated **`location-tracking-service` (Rust)** for ingesting/serving driver positions, and a **`notification-service` (Rust)** implementing **gRPC bidirectional streaming** with **Redis Streams as the message broker** — a readable, real implementation of the persistent-push pattern described above.
+
 ### Client-side smoothing
 - Raw pings arrive every few seconds and are noisy. The app **interpolates/animates** between points (and can use client-side map data + map-matching, note 04) so the marker glides smoothly along the road instead of teleporting.
 
@@ -116,6 +122,7 @@ Match offer -> accept -> live tracking, total elapsed < ~2s
 ## 6) Reliability / security / ops lens
 
 - **Reliability:** treat the hot geo store as **rebuildable** from Kafka; make push **at-least-once** with seq-number dedup so a dropped connection never loses a ride offer. Design for reconnect storms (backoff, jitter).
+- **Overload protection (Grab Spampede):** during demand spikes, count unallocated bookings per **(service, geohash-int cell, time bucket)** with a Redis `INCR`, and **circuit-break** new bookings for that cell/time once a threshold is crossed — a location-aware load shedder that protects the whole pipeline.
 - **Scale/cost:** batch on the client, shard by cell, keep pings out of expensive per-write OLTP. The single biggest cost mistake is durable-writing every ping.
 - **Security/privacy:** encrypt the stream (TLS/QUIC); precise trails are sensitive PII — restrict access, retain minimally, and coarsen resolution for anything exported.
 - **Observability:** ingest rate, Kafka lag, Redis memory/eviction & hot-shard skew, stale-driver ratio, connection count, push success rate, push latency p95, reconnect rate (note 05).
@@ -128,8 +135,9 @@ Match offer -> accept -> live tracking, total elapsed < ~2s
 - Never durable-write each ping (a naive DynamoDB path is **>$200k/day**): **batch → in-memory + TTL → Kafka stream → fan-out**.
 - **Shard the hot store by spatial cell** (S2/H3), not by city, to kill hot-shard contention.
 - Live updates are **pushed over persistent connections**, never polled — Uber **RAMEN**, which migrated **SSE → gRPC bidi over QUIC/HTTP3**.
-- Push infra is **stateful and sharded** (Streamgate + StreamgateFE + Helix), with **Fireball** deciding what to send and **Redis+Cassandra** guaranteeing at-least-once via **sequence numbers**; falls back to **APNs/FCM**.
+- Push infra is **stateful and sharded** (Streamgate + StreamgateFE + Helix), with **Fireball** deciding what to send and **Redis+Cassandra** guaranteeing at-least-once via **sequence numbers**; falls back to **APNs/FCM**. Simpler apps use plain **WebSockets + per-order channels**; **Namma Yatri** open-sources the pattern (Rust location + gRPC-streaming notification over Redis Streams).
 - Clients **interpolate** noisy pings so the marker glides.
+- Add **location-aware overload protection** (Grab Spampede) to shed load per cell during spikes.
 
 ---
 
@@ -146,6 +154,9 @@ Match offer -> accept -> live tracking, total elapsed < ~2s
 - **Streamgate / StreamgateFE:** connection-holding service / userID-sharded proxy.
 - **Fireball:** decides when/what to push (priority, TTL, dedup).
 - **At-least-once + sequence number:** delivery guarantee + resume-after-drop mechanism.
+- **WebSocket:** full-duplex TCP channel; common for per-order customer tracking.
+- **Ringpop:** application-layer sharding of stateful location workers (consistent hash + SWIM + TChannel).
+- **Spampede:** Grab's per-cell/time Redis circuit breaker for demand-spike overload.
 - **APNs / FCM:** OS push services used as wake-up fallback.
 
 ---
@@ -160,6 +171,9 @@ Match offer -> accept -> live tracking, total elapsed < ~2s
 **Live updates / push**
 - Uber Engineering — *Uber's Real-Time Push Platform (RAMEN, SSE design)*: <https://www.uber.com/en-US/blog/real-time-push-platform/>
 - Uber Engineering — *Uber's Next-Gen Push Platform on gRPC (SSE → gRPC/QUIC, Streamgate/StreamgateFE, Helix)*: <https://www.uber.com/en-US/blog/ubers-next-gen-push-platform-on-grpc/>
+- Uber Engineering — *Ringpop: application-layer sharding (Geospatial service)*: <https://www.uber.com/en-US/blog/ringpop-open-source-nodejs-library/>
+- Grab Engineering — *Preventing app performance degradation from ride-demand spikes (Spampede)*: <https://engineering.grab.com/preventing-app-performance-degradation-due-to-sudden-ride-demand-spikes>
+- Namma Yatri — open-source `location-tracking-service` (Rust) & `notification-service` (gRPC streaming + Redis Streams): <https://github.com/nammayatri>
 
 **Streaming infra**
 - Apache Kafka documentation: <https://kafka.apache.org/documentation/>
