@@ -22,6 +22,8 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
   Example subject folder: sketchbook summary diagrams + detailed markdown notes for networking/OSI topics.
 - `cdn/`  
   Content Delivery Network (CDN) topics: fundamentals & request routing, edge computing, and security & multi-CDN resiliency — with sketchbook diagrams + detailed notes sourced from Cloudflare, Akamai, and Fastly.
+- `payments/`  
+  E-commerce payment systems & payment processors: transaction flow (auth→capture→clearing→settlement), bank integration/gateways/e-wallets, reliability (idempotency, no double-charging, order confirmation), security/fraud/disputes, and a dedicated deep dive on the Indian **UPI** system — sourced from Stripe, Razorpay, PCI SSC, NPCI, and RBI.
 
 ## Topic folders
 
