@@ -2,10 +2,34 @@
 
 > Companion deep-dive for the summary diagram: `kafka-use-cases-sketchbook.png`.
 > The image is the quick summary; this document is the detailed reference.
+>
+> **Also see the animated reel:** [`kafka-use-cases-animated.gif`](./kafka-use-cases-animated.gif)
+> (same 10 use cases as a looping sketchbook “reel” — GitHub renders animated GIFs inline in READMEs).
 
 **Learning goal:** See *the full range of what Kafka is used for* beyond "message queue" — messaging, activity tracking, log/metrics aggregation, stream processing, event sourcing, CDC, the storage/commit-log role — and ground each pattern in *how real companies actually use it* (LinkedIn, Uber, Netflix, Pinterest, banks, retail).
 
 Cross-links: fundamentals → note 01; the streams/connect ecosystem that powers many of these → note 05.
+
+---
+
+## 0) Ten use cases at a glance (animated reel)
+
+These match the looping GIF and common “Kafka is everywhere” interview roundups:
+
+| # | Use case | One-liner |
+| --- | --- | --- |
+| 1 | **Async messaging** | Decouple producers/consumers; absorb spikes |
+| 2 | **Pub-sub fan-out** | One event → many independent consumer groups |
+| 3 | **Activity tracking** | Clicks/views/searches as a durable high-volume stream |
+| 4 | **Log aggregation** | Centralize service/host logs before search/lake |
+| 5 | **Stream processing** | Filter/join/window/enrich in flight (Streams/Flink) |
+| 6 | **Metrics & alerting** | Continuous metrics → anomaly detection / alerts |
+| 7 | **Event sourcing** | Immutable event log as source of truth + rebuild |
+| 8 | **Change data capture** | DB changes via Debezium → caches/search/lake |
+| 9 | **Data pipelines** | Ops systems → warehouses (Connect sinks) |
+| 10 | **Replay & recovery** | Rewind offsets; reprocess after bugs/outages |
+
+![10 Kafka Use Cases — animated](./kafka-use-cases-animated.gif)
 
 ---
 

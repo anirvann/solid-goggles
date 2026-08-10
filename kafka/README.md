@@ -10,7 +10,7 @@ Each topic has **two parts**:
 | --- | --- | --- |
 | Kafka fundamentals & architecture | `kafka-fundamentals-architecture-sketchbook.png` | [`01-kafka-fundamentals-and-architecture.md`](./01-kafka-fundamentals-and-architecture.md) |
 | Consumer lag: detection, effects & handling | `kafka-consumer-lag-sketchbook.png` | [`02-consumer-lag-handling.md`](./02-consumer-lag-handling.md) |
-| Use cases & real-life examples | `kafka-use-cases-sketchbook.png` | [`03-use-cases-and-real-life-examples.md`](./03-use-cases-and-real-life-examples.md) |
+| Use cases & real-life examples | `kafka-use-cases-sketchbook.png` + animated reel `kafka-use-cases-animated.gif` | [`03-use-cases-and-real-life-examples.md`](./03-use-cases-and-real-life-examples.md) |
 | Delivery semantics, ordering & exactly-once | `kafka-delivery-semantics-sketchbook.png` | [`04-delivery-semantics-ordering-and-exactly-once.md`](./04-delivery-semantics-ordering-and-exactly-once.md) |
 | Ecosystem: Streams, Connect, Schema Registry | `kafka-ecosystem-sketchbook.png` | [`05-kafka-ecosystem-streams-connect-schema-registry.md`](./05-kafka-ecosystem-streams-connect-schema-registry.md) |
 | Operations, scaling & reliability | `kafka-operations-scaling-sketchbook.png` | [`06-operations-scaling-and-reliability.md`](./06-operations-scaling-and-reliability.md) |
@@ -48,10 +48,17 @@ Covers:
 
 ![Kafka Use Cases](./kafka-use-cases-sketchbook.png)
 
+**Animated reel** (autoplays on GitHub READMEs / issues / PRs — native GIF support):
+
+![10 Kafka Use Cases — animated](./kafka-use-cases-animated.gif)
+
+Regenerate with: `python3 kafka/scripts/generate_use_cases_gif.py`
+
 Detailed notes: [`03-use-cases-and-real-life-examples.md`](./03-use-cases-and-real-life-examples.md)
 
 Covers:
-- **6 patterns**: messaging, activity tracking, log/metrics aggregation, stream processing, event sourcing, commit-log storage
+- **10-use-case reel**: async messaging, pub-sub fan-out, activity tracking, log aggregation, stream processing, metrics & alerting, event sourcing, CDC, data pipelines, replay & recovery
+- **6 patterns** (docs framing): messaging, activity tracking, log/metrics aggregation, stream processing, event sourcing, commit-log storage
 - **Other uses**: **CDC (Debezium)**, outbox, cache invalidation, sagas, ML feature pipelines, IoT, data-lake ingestion (Kappa)
 - **Real companies**: LinkedIn (~7T msgs/day), Uber, Netflix (Keystone), Pinterest, banks, NYT (all content in a log)
 - A worked **e-commerce order lifecycle** and honest **anti-patterns** (RPC, priority/delay queues, huge blobs)
