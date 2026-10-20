@@ -19,7 +19,7 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
 - `AGENTS.md`  
   Instructions auto-loaded by AI agents: paired markdown+image artifacts, and how a topic can have subtopics producing multiple markdown files and multiple summary images.
 - `osi/`  
-  Example subject folder: sketchbook summary diagrams + detailed markdown notes for networking/OSI topics.
+  Networking fundamentals taught as one fictional **RideNow** ride request: addressing, DNS, and ports; local delivery, routing, NAT, and subnets; TCP, TLS, HTTP, WebSockets, and UDP; load balancers, reverse proxies, and firewalls; the OSI model as a troubleshooting map; and the end-to-end tap. Sketchbook diagrams plus detailed notes, following the chapter order of [this walkthrough](https://www.youtube.com/watch?v=TR0RU2pmMeA).
 - `cdn/`  
   Content Delivery Network (CDN) topics: fundamentals & request routing, edge computing, and security & multi-CDN resiliency — with sketchbook diagrams + detailed notes sourced from Cloudflare, Akamai, and Fastly.
 - `payments/`  

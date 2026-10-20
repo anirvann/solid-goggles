@@ -69,6 +69,6 @@ Use one root-level folder per subject area, with matching diagram + detailed not
 ```
 
 Examples:
-- `osi/networking-layers-sketchbook.png` + `osi/01-osi-and-networking-layers.md`
+- `osi/osi-troubleshooting-sketchbook.png` + `osi/05-osi-model-troubleshooting.md`
 - `load-balancing/load-balancer.png` + `load-balancing/01-load-balancer.md`
 - `caching/cache.png` + `caching/01-cache-invalidation.md`
