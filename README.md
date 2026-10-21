@@ -19,7 +19,7 @@ Sketchbook-style visual learning notes for technical topics (starting with syste
 - `AGENTS.md`  
   Instructions auto-loaded by AI agents: paired markdown+image artifacts, and how a topic can have subtopics producing multiple markdown files and multiple summary images.
 - `osi/`  
-  Networking fundamentals taught as one fictional **RideNow** ride request: addressing, DNS, and ports; local delivery, routing, NAT, and subnets; TCP, TLS, HTTP, WebSockets, and UDP; load balancers, reverse proxies, and firewalls; the OSI model as a troubleshooting map; and the end-to-end tap. Sketchbook diagrams plus detailed notes, following the chapter order of [this walkthrough](https://www.youtube.com/watch?v=TR0RU2pmMeA).
+  Networking fundamentals organized by **OSI layer**: a summary of how the seven layers fit together, one sketchbook diagram plus detailed notes per layer (physical, data link, network, transport, session, presentation, application), and a note on which layer load balancers, reverse proxies, and firewalls operate at.
 - `cdn/`  
   Content Delivery Network (CDN) topics: fundamentals & request routing, edge computing, and security & multi-CDN resiliency — with sketchbook diagrams + detailed notes sourced from Cloudflare, Akamai, and Fastly.
 - `payments/`  

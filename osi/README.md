@@ -1,118 +1,137 @@
 # OSI & Networking Visual Notes
 
-Sketchbook-style notes for networking fundamentals, taught as **one RideNow request**.
+Sketchbook-style notes for networking fundamentals, organized by **OSI layer**.
 
-RideNow is a fictional ride-sharing app. A passenger taps **Request Ride**, a driver accepts, and the passenger watches the car move. Each note is one stretch of that journey, paired with a summary diagram. The order follows [Cloud X Berry's walkthrough](https://www.youtube.com/watch?v=TR0RU2pmMeA): concepts show up when the request needs them, and the OSI model shows up last as a way to find where a failure sits.
+Start with the **summary** to see how the seven layers fit together, then open any layer's diagram for a one-page refresher, or its markdown for the deep dive.
 
 Each topic has **two parts**:
 
 - a **summary diagram** (`.png`) — the quick, visual sketchbook overview, and
 - a **detailed markdown** (`.md`) — the in-depth reference with source links.
 
-| Topic | Summary diagram | Detailed notes |
+| # | Topic | Summary diagram | Detailed notes |
+| --- | --- | --- | --- |
+| 0 | **Summary: how the layers fit together** | `osi-overview-sketchbook.png` | [`00-osi-model-overview.md`](./00-osi-model-overview.md) |
+| 1 | Physical | `physical-layer-sketchbook.png` | [`01-physical-layer.md`](./01-physical-layer.md) |
+| 2 | Data link | `data-link-layer-sketchbook.png` | [`02-data-link-layer.md`](./02-data-link-layer.md) |
+| 3 | Network | `network-layer-sketchbook.png` | [`03-network-layer.md`](./03-network-layer.md) |
+| 4 | Transport | `transport-layer-sketchbook.png` | [`04-transport-layer.md`](./04-transport-layer.md) |
+| 5 | Session | `session-layer-sketchbook.png` | [`05-session-layer.md`](./05-session-layer.md) |
+| 6 | Presentation | `presentation-layer-sketchbook.png` | [`06-presentation-layer.md`](./06-presentation-layer.md) |
+| 7 | Application | `application-layer-sketchbook.png` | [`07-application-layer.md`](./07-application-layer.md) |
+| 8 | Devices & security across layers | `devices-across-layers-sketchbook.png` | [`08-devices-and-security-across-layers.md`](./08-devices-and-security-across-layers.md) |
+
+## Where each concept lives
+
+| Concept | Layer | Notes |
 | --- | --- | --- |
-| Addressing, DNS & ports | `addressing-dns-ports-sketchbook.png` | [`01-addressing-dns-and-ports.md`](./01-addressing-dns-and-ports.md) |
-| Local delivery, routing, NAT & subnets | `local-routing-nat-subnets-sketchbook.png` | [`02-local-delivery-routing-nat.md`](./02-local-delivery-routing-nat.md) |
-| Transport & application protocols | `transport-application-protocols-sketchbook.png` | [`03-transport-and-application-protocols.md`](./03-transport-and-application-protocols.md) |
-| Infrastructure & network security | `infrastructure-security-sketchbook.png` | [`04-infrastructure-and-network-security.md`](./04-infrastructure-and-network-security.md) |
-| OSI model as a troubleshooting map | `osi-troubleshooting-sketchbook.png` | [`05-osi-model-troubleshooting.md`](./05-osi-model-troubleshooting.md) |
-| One RideNow request, start to finish | `ridenow-request-journey-sketchbook.png` | [`06-ridenow-request-journey.md`](./06-ridenow-request-journey.md) |
+| Cables, fiber, radio, NIC | 1 | [Physical](./01-physical-layer.md) |
+| MAC address, ARP, switches, VLANs | 2 | [Data link](./02-data-link-layer.md) |
+| IPv4 / IPv6, private vs public IP, subnetting, routing, NAT, ICMP | 3 | [Network](./03-network-layer.md) |
+| Ports, TCP, three-way handshake, UDP, QUIC | 4 | [Transport](./04-transport-layer.md) |
+| Keep-alive, connection reuse, session resumption, heartbeats | 5 | [Session](./05-session-layer.md) |
+| Encoding, serialization, compression, HTTPS / TLS, certificates | 6 | [Presentation](./06-presentation-layer.md) |
+| DNS, DHCP, HTTP, WebSockets | 7 | [Application](./07-application-layer.md) |
+| Load balancer, reverse proxy, firewall, NAT gateway, WAF | 2–7 | [Devices & security](./08-devices-and-security-across-layers.md) |
 
 ## Diagrams
 
-### 1. Addressing, DNS & Ports
+### 0. Summary — How the Layers Fit Together
 
-![Addressing, DNS and ports](./addressing-dns-ports-sketchbook.png)
+![OSI overview](./osi-overview-sketchbook.png)
 
-Detailed notes: [`01-addressing-dns-and-ports.md`](./01-addressing-dns-and-ports.md)
+Detailed notes: [`00-osi-model-overview.md`](./00-osi-model-overview.md)
 
-Video chapters: IP address (1:30), DNS (4:50), ports (5:48).
+- All seven layers with their job, PDU, and addressing
+- OSI vs the TCP/IP stack
+- Encapsulation: `[ Ethernet [ IP [ TCP [ TLS [ HTTP ] ] ] ] ]`
+- One browser request traced through every layer
+- Troubleshooting bottom-up: link → route → port → handshake → TLS → HTTP
 
-Covers:
+### 1. Physical Layer
 
-- **IP as a location**, not a permanent device identity; the phone's Wi-Fi address and its cellular address differ
-- **IPv4 vs IPv6**: 32-bit and 128-bit
-- **Private vs public**: the phone and the database stay private; RideNow's front door is public
-- **DNS**: name to address, cache, TTL, one name with many addresses
-- **Ports**: the service on that machine; listening on localhost is not "reachable"
+![Physical layer](./physical-layer-sketchbook.png)
 
-### 2. Local Delivery, Routing, NAT & Subnets
+Detailed notes: [`01-physical-layer.md`](./01-physical-layer.md)
 
-![Local delivery, routing, NAT and subnets](./local-routing-nat-subnets-sketchbook.png)
+- Copper, fiber, and radio trade-offs
+- NIC/PHY, transceivers, repeaters, hubs, modems
+- Bandwidth vs throughput, attenuation, interference, duplex
 
-Detailed notes: [`02-local-delivery-routing-nat.md`](./02-local-delivery-routing-nat.md)
+### 2. Data Link Layer
 
-Video chapters: MAC (6:48), ARP (7:39), routing (8:30), NAT (9:17), subnetting (10:18), DHCP (11:16).
+![Data link layer](./data-link-layer-sketchbook.png)
 
-Covers:
+Detailed notes: [`02-data-link-layer.md`](./02-data-link-layer.md)
 
-- **MAC vs IP**, and **ARP** ("who has this IPv4 address?") on the local link
-- **Hop-by-hop routing**: the phone never knows the whole path
-- **NAT**: many private devices share a public connection; the router remembers the flow
-- **Subnets**: public edge, application tier, database tier
-- **DHCP**: IP, gateway, and DNS without typing them
+- MAC addresses and the Ethernet frame
+- How switches learn, forward, and flood
+- ARP (IPv4) and NDP (IPv6); VLANs
+- Why MAC changes every hop while IP does not
 
-### 3. Transport & Application Protocols
+### 3. Network Layer
 
-![Transport and application protocols](./transport-application-protocols-sketchbook.png)
+![Network layer](./network-layer-sketchbook.png)
 
-Detailed notes: [`03-transport-and-application-protocols.md`](./03-transport-and-application-protocols.md)
+Detailed notes: [`03-network-layer.md`](./03-network-layer.md)
 
-Video chapters: TCP (12:17), three-way handshake (13:07), HTTPS/TLS (13:51), HTTP (15:02), WebSockets (18:50), UDP (20:18).
+- IPv4 vs IPv6; private vs public addresses
+- Subnetting and CIDR
+- Routing: longest prefix match, TTL, BGP
+- NAT / NAPT and ICMP
 
-Covers:
+### 4. Transport Layer
 
-- **TCP** for a ride request that must arrive complete and in order
-- **Three-way handshake**, and why RideNow reuses the connection
-- **TLS**: encryption, integrity, certificates; termination often at the proxy
-- **HTTP** request and response (`POST /v1/rides`)
-- **WebSockets** so the server can push driver location
-- **UDP** when a newer sample beats a retransmission
+![Transport layer](./transport-layer-sketchbook.png)
 
-### 4. Infrastructure & Network Security
+Detailed notes: [`04-transport-layer.md`](./04-transport-layer.md)
 
-![Infrastructure and network security](./infrastructure-security-sketchbook.png)
+- Ports, sockets, and the 5-tuple
+- TCP reliability and the three-way handshake
+- UDP and when to choose it; QUIC
+- Timeout vs RST when debugging
 
-Detailed notes: [`04-infrastructure-and-network-security.md`](./04-infrastructure-and-network-security.md)
+### 5. Session Layer
 
-Video chapters: load balancer (15:41), reverse proxy (16:33), firewall (17:40).
+![Session layer](./session-layer-sketchbook.png)
 
-Covers:
+Detailed notes: [`05-session-layer.md`](./05-session-layer.md)
 
-- **Load balancer**: spread traffic across healthy servers; drop unhealthy ones
-- **Reverse proxy**: route, terminate TLS, cache, compress, hide internal services
-- Where those two jobs **overlap** in real products
-- **Firewalls** and security groups: internet may reach port 443; it may not reach the database
-- A timeout with a healthy process is often a **dropped** packet
+- Establish, maintain, resume, release
+- Keep-alive, connection pools, heartbeats, TLS resumption
+- Idle timeouts and session security
 
-### 5. OSI Model as a Troubleshooting Map
+### 6. Presentation Layer
 
-![OSI troubleshooting map](./osi-troubleshooting-sketchbook.png)
+![Presentation layer](./presentation-layer-sketchbook.png)
 
-Detailed notes: [`05-osi-model-troubleshooting.md`](./05-osi-model-troubleshooting.md)
+Detailed notes: [`06-presentation-layer.md`](./06-presentation-layer.md)
 
-Video chapter: OSI model (21:29).
+- Character encoding, serialization formats, compression
+- HTTPS / TLS: confidentiality, integrity, authentication
+- TLS 1.3 handshake and the certificate chain
 
-Covers:
+### 7. Application Layer
 
-- Seven layers, each tied to a RideNow mechanism (not a list to recite)
-- How OSI lines up with the **TCP/IP** stack
-- The questions to ask in order: link, route, port, TCP handshake, TLS, HTTP
-- Encapsulation and the commands that answer each layer
+![Application layer](./application-layer-sketchbook.png)
 
-### 6. One RideNow Request, Start to Finish
+Detailed notes: [`07-application-layer.md`](./07-application-layer.md)
 
-![RideNow request journey](./ridenow-request-journey-sketchbook.png)
+- DNS resolution, records, caching, and TTL
+- DHCP (DORA)
+- HTTP methods, status codes, and versions
+- WebSockets, and picking a real-time pattern
 
-Detailed notes: [`06-ridenow-request-journey.md`](./06-ridenow-request-journey.md)
+### 8. Devices & Security Across Layers
 
-Video chapter: recap (22:50).
+![Devices across layers](./devices-across-layers-sketchbook.png)
 
-Covers:
+Detailed notes: [`08-devices-and-security-across-layers.md`](./08-devices-and-security-across-layers.md)
 
-- The whole tap, in seven stages: address, find, move, connect, secure and send, front door, live updates
-- Which failure symptom belongs to which stage
-- The five takeaways: different problems, connectivity vs health, protocol choice, infrastructure controls, OSI as a checklist
+- Which layer hubs, switches, routers, firewalls, and proxies work at
+- L4 vs L7 load balancers; reverse proxies
+- Firewalls, security groups, and default deny
+- Mapping error symptoms (timeout, 502, 503, 504) to devices
 
 ## Style
 

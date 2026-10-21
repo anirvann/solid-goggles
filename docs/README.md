@@ -22,13 +22,11 @@ topic folder and cross-link them.
 
 ## Example
 
-See the root-level `osi/` folder for a complete example. One subject is split into several paired notes, in reading order:
-- `addressing-dns-ports-sketchbook.png` + `01-addressing-dns-and-ports.md`
-- `local-routing-nat-subnets-sketchbook.png` + `02-local-delivery-routing-nat.md`
-- `transport-application-protocols-sketchbook.png` + `03-transport-and-application-protocols.md`
-- `infrastructure-security-sketchbook.png` + `04-infrastructure-and-network-security.md`
-- `osi-troubleshooting-sketchbook.png` + `05-osi-model-troubleshooting.md`
-- `ridenow-request-journey-sketchbook.png` + `06-ridenow-request-journey.md`
+See the root-level `osi/` folder for a complete example. One subject is split into a summary pair plus one pair per subtopic:
+- `osi-overview-sketchbook.png` + `00-osi-model-overview.md` (summary: how the parts fit together)
+- `physical-layer-sketchbook.png` + `01-physical-layer.md`, through
+- `application-layer-sketchbook.png` + `07-application-layer.md`
+- `devices-across-layers-sketchbook.png` + `08-devices-and-security-across-layers.md`
 
 ## Future topics
 
