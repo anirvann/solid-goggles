@@ -22,9 +22,11 @@ topic folder and cross-link them.
 
 ## Example
 
-See the root-level `osi/` folder for a complete example:
-- `networking-layers-sketchbook.png` + `01-osi-and-networking-layers.md`
-- `tcp-udp-tls-packet-journey.png` + `02-transport-ip-secure-web.md`
+See the root-level `osi/` folder for a complete example. One subject is split into a summary pair plus one pair per subtopic:
+- `osi-overview-sketchbook.png` + `00-osi-model-overview.md` (summary: how the parts fit together)
+- `physical-layer-sketchbook.png` + `01-physical-layer.md`, through
+- `application-layer-sketchbook.png` + `07-application-layer.md`
+- `devices-across-layers-sketchbook.png` + `08-devices-and-security-across-layers.md`
 
 ## Future topics
 
